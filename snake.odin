@@ -17,20 +17,17 @@ tick_rate: f32 = 0.15
 tick_timer := tick_rate
 
 place_food :: proc() {
+	occupied: [GRID_WIDTH][GRID_WIDTH]bool
+
+	for i in 0..<snake_length {
+		occupied[snake[i].x][snake[i].y] = true
+	}
+
 	free_cells := make([dynamic]Vec2i, context.temp_allocator)
 
 	for x in 0..<GRID_WIDTH {
 		for y in 0..<GRID_WIDTH {
-			part_of_snake := false
-
-			for i in 0..<snake_length {
-				if snake[i].x == x && snake[i].y == y {
-					part_of_snake = true
-					break
-				}
-			}
-
-			if !part_of_snake {
+			if !occupied[x][y] {
 				append(&free_cells, Vec2i {x,y})
 			}
 		}
