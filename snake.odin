@@ -14,7 +14,7 @@ snake: [GRID_WIDTH*GRID_WIDTH]Vec2i
 snake_length: int
 food_pos: Vec2i
 game_over: bool
-move_direction := Vec2i {0, 1}
+move_direction: Vec2i
 tick_rate: f32 = 0.15
 tick_timer := tick_rate
 
@@ -44,15 +44,22 @@ place_food :: proc() {
 	}
 }
 
-main :: proc() {
-	rl.InitWindow(WINDOW_SIZE, WINDOW_SIZE, "Snake")
-	rl.SetConfigFlags({.VSYNC_HINT})
-	
+restart :: proc() {
 	start_head_pos := Vec2i { GRID_WIDTH/2, GRID_WIDTH/2 }
 	snake[0] = start_head_pos
 	snake[1] = start_head_pos - {0, 1}
 	snake[2] = start_head_pos - {0, 2}
 	snake_length = 3
+	move_direction = {0, 1}
+	game_over = false
+}
+
+main :: proc() {
+	rl.InitWindow(WINDOW_SIZE, WINDOW_SIZE, "Snake")
+	rl.SetConfigFlags({.VSYNC_HINT})
+	rl.InitAudioDevice()
+	
+	restart()
 
 	place_food()
 
@@ -61,7 +68,10 @@ main :: proc() {
 	tail_sprite := rl.LoadTexture("tail.png")
 	food_sprite := rl.LoadTexture("food.png")
 
-	for !rl.WindowShouldClose() && !game_over {
+	eat_sound := rl.LoadSound("eat.wav")
+	crash_sound := rl.LoadSound("crash.wav")
+
+	for !rl.WindowShouldClose() {
 		if rl.IsKeyDown(.UP) {
 			move_direction = {0, -1}
 		}
@@ -78,7 +88,15 @@ main :: proc() {
 			move_direction = {1, 0}
 		}
 
-		tick_timer -= rl.GetFrameTime()
+		if game_over {
+			if rl.IsKeyPressed(.ENTER) {
+				restart()
+				place_food()
+			}
+		} else {
+			tick_timer -= rl.GetFrameTime()
+		}
+
 		if tick_timer <= 0 {
 			ate_food := false
 			next_tail_pos := snake[0]
@@ -86,6 +104,7 @@ main :: proc() {
 
 			if new_head_pos.x < 0 || new_head_pos.y < 0 || new_head_pos.x >= GRID_WIDTH || new_head_pos.y >= GRID_WIDTH {
 				game_over = true
+				rl.PlaySound(crash_sound)
 			} else {
 				collided_with_self := false
 				for i in 1..<snake_length-1 {
@@ -97,6 +116,7 @@ main :: proc() {
 
 				if collided_with_self {
 					game_over = true
+					rl.PlaySound(crash_sound)
 				} else {
 					snake[0] = new_head_pos
 				}
@@ -112,6 +132,7 @@ main :: proc() {
 				snake_length += 1
 				snake[snake_length - 1] = next_tail_pos
 				place_food()
+				rl.PlaySound(eat_sound)
 			}
 
 			tick_timer = tick_rate + tick_timer
@@ -163,10 +184,25 @@ main :: proc() {
 		}
 
 		rl.EndMode2D()
+
+		if game_over {
+			rl.DrawText("Game Over!", 20, 20, 50, rl.RED)
+			rl.DrawText("Press Enter to start again", 20, 80, 40, rl.BLACK)
+		}
+
 		rl.EndDrawing()
 
 		free_all(context.temp_allocator)
 	}
 
+	rl.UnloadTexture(body_sprite)
+	rl.UnloadTexture(food_sprite)
+	rl.UnloadTexture(head_sprite)
+	rl.UnloadTexture(tail_sprite)
+
+	rl.UnloadSound(crash_sound)
+	rl.UnloadSound(eat_sound)
+
+	rl.CloseAudioDevice()
 	rl.CloseWindow()
 }
