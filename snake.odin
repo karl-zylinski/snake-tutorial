@@ -139,7 +139,7 @@ main :: proc() {
 		}
 		
 		rl.BeginDrawing()
-		rl.ClearBackground({ 76, 53, 83, 255})
+		rl.ClearBackground({76, 53, 83, 255})
 
 		camera := rl.Camera2D {
 			zoom = f32(WINDOW_SIZE) / CANVAS_SIZE,
