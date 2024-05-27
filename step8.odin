@@ -1,22 +1,28 @@
-//+build ignore
 package snake
+
+// add score counter
+// add init audio, close audio
+// load sounds, play them
+// unload sounds
 
 import rl "vendor:raylib"
 import "core:math"
+import "core:fmt"
 
 WINDOW_SIZE :: 1000
 GRID_WIDTH :: 20
 CELL_SIZE :: 16
 CANVAS_SIZE :: GRID_WIDTH * CELL_SIZE
 Vec2i :: [2]int
+MAX_SNAKE_LENGTH :: GRID_WIDTH * GRID_WIDTH
 
-snake: [GRID_WIDTH*GRID_WIDTH]Vec2i
+snake: [MAX_SNAKE_LENGTH]Vec2i
 snake_length: int
-food_pos: Vec2i
-game_over: bool
 move_direction: Vec2i
-tick_rate: f32 = 0.15
+tick_rate: f32 = 0.13
 tick_timer := tick_rate
+game_over: bool
+food_pos: Vec2i
 
 place_food :: proc() {
 	occupied: [GRID_WIDTH][GRID_WIDTH]bool
@@ -41,7 +47,7 @@ place_food :: proc() {
 }
 
 restart :: proc() {
-	start_head_pos := Vec2i { GRID_WIDTH/2, GRID_WIDTH/2 }
+	start_head_pos := Vec2i{ GRID_WIDTH / 2, GRID_WIDTH / 2}
 	snake[0] = start_head_pos
 	snake[1] = start_head_pos - {0, 1}
 	snake[2] = start_head_pos - {0, 2}
@@ -54,15 +60,14 @@ main :: proc() {
 	rl.InitWindow(WINDOW_SIZE, WINDOW_SIZE, "Snake")
 	rl.SetConfigFlags({.VSYNC_HINT})
 	rl.InitAudioDevice()
-	
-	restart()
 
+	restart()
 	place_food()
 
+	food_sprite := rl.LoadTexture("food.png")
 	head_sprite := rl.LoadTexture("head.png")
 	body_sprite := rl.LoadTexture("body.png")
 	tail_sprite := rl.LoadTexture("tail.png")
-	food_sprite := rl.LoadTexture("food.png")
 
 	eat_sound := rl.LoadSound("eat.wav")
 	crash_sound := rl.LoadSound("crash.wav")
@@ -87,7 +92,6 @@ main :: proc() {
 		if game_over {
 			if rl.IsKeyPressed(.ENTER) {
 				restart()
-				place_food()
 			}
 		} else {
 			tick_timer -= rl.GetFrameTime()
@@ -95,25 +99,18 @@ main :: proc() {
 
 		if tick_timer <= 0 {
 			next_part_pos := snake[0]
-			new_head_pos := snake[0] + move_direction
+			snake[0] = snake[0] + move_direction
+			head_pos := snake[0]
 
-			if new_head_pos.x < 0 || new_head_pos.y < 0 || new_head_pos.x >= GRID_WIDTH || new_head_pos.y >= GRID_WIDTH {
+			if head_pos.x < 0 || head_pos.y < 0 || head_pos.x >= GRID_WIDTH || head_pos.y >= GRID_WIDTH {
 				game_over = true
 				rl.PlaySound(crash_sound)
-			} else {
-				collided_with_self := false
-				for i in 1..<snake_length-1 {
-					if snake[i] == new_head_pos {
-						collided_with_self = true
-						break
-					}
-				}
+			}
 
-				if collided_with_self {
+			for i in 1..<snake_length-1 {
+				if snake[i] == head_pos {
 					game_over = true
 					rl.PlaySound(crash_sound)
-				} else {
-					snake[0] = new_head_pos
 				}
 			}
 
@@ -123,7 +120,7 @@ main :: proc() {
 				next_part_pos = cur_pos
 			}
 
-			if snake[0] == food_pos {
+			if head_pos == food_pos {
 				snake_length += 1
 				snake[snake_length - 1] = next_part_pos
 				place_food()
@@ -132,7 +129,7 @@ main :: proc() {
 
 			tick_timer = tick_rate + tick_timer
 		}
-		
+
 		rl.BeginDrawing()
 		rl.ClearBackground({76, 53, 83, 255})
 
@@ -142,28 +139,28 @@ main :: proc() {
 
 		rl.BeginMode2D(camera)
 
-		rl.DrawTextureV(food_sprite, {f32(food_pos.x)*CELL_SIZE, f32(food_pos.y)*CELL_SIZE}, rl.WHITE)
+		rl.DrawTextureV(food_sprite, {f32(food_pos.x), f32(food_pos.y)}*CELL_SIZE, rl.WHITE)
 
 		for i in 0..<snake_length {
 			pos := snake[i]
-			gfx := body_sprite
+			part_sprite := body_sprite
 			dir: Vec2i
 
 			if i == 0 {
-				gfx = head_sprite
+				part_sprite = head_sprite
 				dir = pos - snake[i + 1]
 			} else if i == snake_length - 1 {
-				gfx = tail_sprite
+				part_sprite = tail_sprite
 				dir = snake[i - 1] - pos
 			} else {
 				dir = snake[i - 1] - pos
 			}
 
-			rot := math.atan2(f32(dir.y), f32(dir.x)) * (180/math.PI)
-
+			rot := math.atan2(f32(dir.y), f32(dir.x)) * math.DEG_PER_RAD
+			
 			source := rl.Rectangle {
 				0, 0,
-				f32(gfx.width), f32(gfx.height),
+				f32(part_sprite.width), f32(part_sprite.height),
 			}
 
 			dest := rl.Rectangle {
@@ -171,17 +168,17 @@ main :: proc() {
 				CELL_SIZE, CELL_SIZE,
 			}
 
-			rl.DrawTexturePro(gfx, source, dest, {CELL_SIZE, CELL_SIZE}*0.5, rot, rl.WHITE)
-			//rl.DrawRectangleRec({f32(pos.x)*CELL_SIZE, f32(pos.y)*CELL_SIZE, CELL_SIZE, CELL_SIZE}, color)
+			rl.DrawTexturePro(part_sprite, source, dest, {CELL_SIZE, CELL_SIZE}*0.5, rot, rl.WHITE)
 		}
-
-		rl.EndMode2D()
 
 		if game_over {
-			rl.DrawText("Game Over!", 20, 20, 50, rl.RED)
-			rl.DrawText("Press Enter to start again", 20, 80, 40, rl.BLACK)
+			rl.DrawText("Game Over!", 4, 4, 25, rl.RED)
+			rl.DrawText("Press Enter to play again", 4, 30, 15, rl.BLACK)
 		}
 
+		rl.DrawText(fmt.ctprintf("Score: %v", snake_length - 3), 4, CANVAS_SIZE - 14, 10, rl.GRAY)
+
+		rl.EndMode2D()
 		rl.EndDrawing()
 
 		free_all(context.temp_allocator)
