@@ -1,0 +1,9 @@
+Things you can try to improve the game!
+
+- Add highscore counter: A separate score counter that doesn't reset when you get 'game over' [easy]
+- Make the snake move smoothly: You can still be on grid but move each part smoothly to the next cell. Might be tricky to make 'feel good'. [hard]
+- Add controller support: see rl.IsGamepadButtonPressed [easy]
+- Add music: see rl.PlayMusicStream [medium]
+- Add screen shake when you crash and eat food: you can use target on rl.Camera2D. You'll probably need a timer to track for how long the shake should happen [medium]
+
+Let me know how it went in the comments or on my Discord server!
