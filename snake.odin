@@ -1,12 +1,14 @@
 package snake
 
 import rl "vendor:raylib"
+import "core:math"
 
 WINDOW_SIZE :: 1000
 GRID_WIDTH :: 20
 CELL_SIZE :: 16
 CANVAS_SIZE :: GRID_WIDTH * CELL_SIZE
 Vec2i :: [2]int
+Vec2 :: [2]f32
 
 snake: [GRID_WIDTH*GRID_WIDTH]Vec2i
 snake_length: int
@@ -15,6 +17,10 @@ game_over: bool
 move_direction := Vec2i {0, 1}
 tick_rate: f32 = 0.15
 tick_timer := tick_rate
+
+vec2_from_vec2i :: proc(v: Vec2i) -> Vec2 {
+	return {f32(v.x), f32(v.y)}
+}
 
 place_food :: proc() {
 	occupied: [GRID_WIDTH][GRID_WIDTH]bool
@@ -49,6 +55,11 @@ main :: proc() {
 	snake_length = 3
 
 	place_food()
+
+	head_sprite := rl.LoadTexture("head.png")
+	body_sprite := rl.LoadTexture("body.png")
+	tail_sprite := rl.LoadTexture("tail.png")
+	food_sprite := rl.LoadTexture("food.png")
 
 	for !rl.WindowShouldClose() && !game_over {
 		if rl.IsKeyDown(.UP) {
@@ -107,24 +118,48 @@ main :: proc() {
 		}
 		
 		rl.BeginDrawing()
-		rl.ClearBackground(rl.BLACK)
+		rl.ClearBackground({ 76, 53, 83, 255})
 
 		camera := rl.Camera2D {
 			zoom = f32(WINDOW_SIZE) / CANVAS_SIZE,
 		}
 
 		rl.BeginMode2D(camera)
-		rl.DrawRectangleRec({f32(food_pos.x)*CELL_SIZE, f32(food_pos.y)*CELL_SIZE, CELL_SIZE, CELL_SIZE}, rl.RED)
+
+		rl.DrawTextureV(food_sprite, {f32(food_pos.x)*CELL_SIZE, f32(food_pos.y)*CELL_SIZE}, rl.WHITE)
 
 		for i in 0..<snake_length {
 			pos := snake[i]
+			gfx := body_sprite
 
-			color := rl.GRAY
 			if i == 0 {
-				color = rl.WHITE
+				gfx = head_sprite
+			} else if i == snake_length - 1 {
+				gfx = tail_sprite
 			}
 
-			rl.DrawRectangleRec({f32(pos.x)*CELL_SIZE, f32(pos.y)*CELL_SIZE, CELL_SIZE, CELL_SIZE}, color)
+			dir: Vec2i
+
+			if i == 0 {
+				dir = pos - snake[i + 1]
+			} else {
+				dir = snake[i - 1] - pos
+			}
+
+			rot := math.atan2(f32(dir.y), f32(dir.x)) * (180/math.PI)
+
+			source := rl.Rectangle {
+				0, 0,
+				f32(gfx.width), f32(gfx.height),
+			}
+
+			dest := rl.Rectangle {
+				(f32(pos.x) + 0.5)*CELL_SIZE, (f32(pos.y) + 0.5)*CELL_SIZE,
+				CELL_SIZE, CELL_SIZE,
+			}
+
+			rl.DrawTexturePro(gfx, source, dest, {CELL_SIZE, CELL_SIZE}*0.5, rot, rl.WHITE)
+			//rl.DrawRectangleRec({f32(pos.x)*CELL_SIZE, f32(pos.y)*CELL_SIZE, CELL_SIZE, CELL_SIZE}, color)
 		}
 
 		rl.EndMode2D()
